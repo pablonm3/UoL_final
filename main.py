@@ -10,15 +10,17 @@ from keras.optimizers import Adam
 import numpy as np
 import pandas as pd
 
+from mutation import my_mutGaussian
+
 # Load your data
 # Assuming df is your DataFrame and it has columns 'text' and 'label'
 DS_PATH = 'datasets/IMDB_Dataset.csv'
 RANDOM_SEED = 42
 TEXT_COLUMN = 'review'
 LABEL_COLUMN = 'sentiment'
-GENERATIONS = 5
-N_POPULATION = 2
-PROB_MUTATION = 0.2
+GENERATIONS = 10
+N_POPULATION = 3
+PROB_MUTATION = 1
 MAX_SAMPLE_SIZE_DS = 3000
 df = pd.read_csv(DS_PATH)
 #downsize df to max 3000 rows
@@ -52,11 +54,6 @@ def parse_genotype(individual):
     # convert framework gene: between 0 and 1 to fenotype, real value used by my pipeline/model
     r = {}
     for i, gene in enumerate(individual):
-        # genes are between 0 and 1 but could be outside bounds due to mutation, fix this.
-        if(gene >1):
-            gene = 1
-        if(gene <0):
-            gene = 0
         if GENOTYPE_SPEC[i]["type"] == "float_range":
             r[GENOTYPE_SPEC[i]["name"]] = GENOTYPE_SPEC[i]["bounds"][0] + gene * (
                         GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0])
@@ -103,7 +100,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("evaluate", eval_nn)
 toolbox.register("mate", tools.cxTwoPoint)
-toolbox.register("mutate", tools.mutGaussian,  mu=0, sigma=0.1, indpb=PROB_MUTATION)
+toolbox.register("mutate", my_mutGaussian,  mu=0, sigma=1, indpb=PROB_MUTATION)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 pop = toolbox.population(n=N_POPULATION)
@@ -119,3 +116,5 @@ best_individual = hof[0]
 print("Best individual: " + str(best_individual))
 print("best individual fitness: " + str(best_individual.fitness))
 print(log)
+print("surviving population:")
+print(pop)
