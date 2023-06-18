@@ -10,7 +10,7 @@ from keras.optimizers import Adam
 import numpy as np
 import pandas as pd
 
-from mutation import my_mutGaussian
+from custom_deap_tools import my_mutGaussian, my_HallOfFame
 
 # Load your data
 # Assuming df is your DataFrame and it has columns 'text' and 'label'
@@ -104,7 +104,7 @@ toolbox.register("mutate", my_mutGaussian,  mu=0, sigma=0.1, indpb=PROB_MUTATION
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 pop = toolbox.population(n=N_POPULATION)
-hof = tools.HallOfFame(1)
+hof = my_HallOfFame(1)
 stats = tools.Statistics(lambda ind: ind.fitness.values)
 stats.register("avg", np.mean)
 stats.register("std", np.std)
