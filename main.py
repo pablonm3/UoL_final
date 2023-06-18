@@ -20,7 +20,7 @@ TEXT_COLUMN = 'review'
 LABEL_COLUMN = 'sentiment'
 GENERATIONS = 10
 N_POPULATION = 3
-PROB_MUTATION = 1
+PROB_MUTATION = 0.2
 MAX_SAMPLE_SIZE_DS = 3000
 df = pd.read_csv(DS_PATH)
 #downsize df to max 3000 rows
@@ -100,7 +100,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("evaluate", eval_nn)
 toolbox.register("mate", tools.cxTwoPoint)
-toolbox.register("mutate", my_mutGaussian,  mu=0, sigma=1, indpb=PROB_MUTATION)
+toolbox.register("mutate", my_mutGaussian,  mu=0, sigma=0.1, indpb=PROB_MUTATION)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 pop = toolbox.population(n=N_POPULATION)
