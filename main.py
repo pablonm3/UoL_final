@@ -1,40 +1,76 @@
-import random
-from deap import creator, base, tools, algorithms
+from deap import base, creator, tools, algorithms
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.preprocessing import LabelEncoder
+from keras.utils import np_utils
+from keras.optimizers import Adam
+import numpy as np
+import pandas as pd
 
-def run():
+# Load your data
+# Assuming df is your DataFrame and it has columns 'text' and 'label'
+df = pd.read_csv('datasets/IMDB_Dataset.csv')
+RANDOM_SEED = 42
+TEXT_COLUMN = 'review'
+LABEL_COLUMN = 'sentiment'
+#downsize df to max 3000 rows
+df = df.sample(n=3000, random_state=RANDOM_SEED)
+# Preprocess text data to convert it into numerical data
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(df[TEXT_COLUMN]).toarray()
+y = df[LABEL_COLUMN]
 
+# Encode class values as integers
+encoder = LabelEncoder()
+encoder.fit(y)
+encoded_Y = encoder.transform(y)
+# Convert integers to dummy variables (i.e. one hot encoded)
+y = np_utils.to_categorical(encoded_Y)
 
-    creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-    creator.create("Individual", list, fitness=creator.FitnessMax)
+# Train test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    toolbox = base.Toolbox()
+# Define method to create model
+def create_model(learning_rate=0.01, neurons=1):
+    model = Sequential()
+    model.add(Dense(neurons, input_dim=X_train.shape[1], activation='relu'))
+    model.add(Dense(y_train.shape[1], activation='softmax'))
+    optimizer = Adam(learning_rate=learning_rate)
+    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    return model
 
-    toolbox.register("attr_bool", random.randint, 0, 1)
-    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=100)
-    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+# Define method for evaluation
+def eval_nn(individual):
+    print("evaluating...")
+    learning_rate, neurons = individual
+    model = KerasClassifier(build_fn=create_model, epochs=10, batch_size=10, verbose=0)
+    model = model.set_params(learning_rate=learning_rate, neurons=int(neurons))
+    model.fit(X_train, y_train)
+    accuracy = model.score(X_test, y_test)
+    print("accuracy: ", accuracy)
+    return accuracy,
 
-    def evalOneMax(individual):
-        return sum(individual),
+# Register parameters for GA
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("Individual", list, fitness=creator.FitnessMax)
 
-    toolbox.register("evaluate", evalOneMax)
-    toolbox.register("mate", tools.cxTwoPoint)
-    toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
-    toolbox.register("select", tools.selTournament, tournsize=3)
+toolbox = base.Toolbox()
+toolbox.register("attr_learning_rate", np.random.uniform, 0.001, 0.1)
+toolbox.register("attr_neurons", np.random.randint, 1, 100)
+toolbox.register("individual", tools.initCycle, creator.Individual,
+                 (toolbox.attr_learning_rate, toolbox.attr_neurons), n=1)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-    population = toolbox.population(n=300)
+toolbox.register("evaluate", eval_nn)
+toolbox.register("mate", tools.cxTwoPoint)
+toolbox.register("mutate", tools.mutUniformInt, low=[0.001, 1], up=[0.1, 100], indpb=0.2)
+toolbox.register("select", tools.selTournament, tournsize=3)
 
-    NGEN = 40
-    for gen in range(NGEN):
-        offspring = algorithms.varAnd(population, toolbox, cxpb=0.5, mutpb=0.1)
-        fits = toolbox.map(toolbox.evaluate, offspring)
-        for fit, ind in zip(fits, offspring):
-            ind.fitness.values = fit
-        population = toolbox.select(offspring, k=len(population))
-    top10 = tools.selBest(population, k=10)
-    print("top 10 individuals:\n", top10)
+pop = toolbox.population(n=10)
+result = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=10, verbose=False)
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    run()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+best_individual = tools.selBest(pop, 1)[0]
+print("Best individual: " + str(best_individual))
