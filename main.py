@@ -20,8 +20,10 @@ TEXT_COLUMN = 'review'
 LABEL_COLUMN = 'sentiment'
 GENERATIONS = 10
 N_POPULATION = 3
-PROB_MUTATION = 0.2
+PROB_MUTATION = 0
 MAX_SAMPLE_SIZE_DS = 3000
+N_NEURONS = 100
+NEURONS_CHANGE_FACTOR = 0.8 # reduce neurons by 20% each layer
 df = pd.read_csv(DS_PATH)
 #downsize df to max 3000 rows
 df = df.sample(n=MAX_SAMPLE_SIZE_DS, random_state=RANDOM_SEED)
@@ -41,9 +43,13 @@ y = np_utils.to_categorical(encoded_Y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
 # Define method to create model
-def create_model(learning_rate=0.01, neurons=1):
+def create_model(learning_rate=0.01, n_layers=0, max_neurons=100):
     model = Sequential()
+    neurons = max_neurons
     model.add(Dense(neurons, input_dim=X_train.shape[1], activation='relu'))
+    for i in range(n_layers):
+        neurons = int(neurons * NEURONS_CHANGE_FACTOR) # reduce neurons by a fixed rate each layer
+        model.add(Dense(neurons, activation='relu'))
     model.add(Dense(y_train.shape[1], activation='softmax'))
     optimizer = Adam(learning_rate=learning_rate)
     model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
@@ -63,18 +69,23 @@ def parse_genotype(individual):
 
     return r
 
-
+fitness_cache = {}
 # Define method for evaluation
 def eval_nn(individual):
-    print("evaluating...")
     props = parse_genotype(individual)
+    print("evaluating individual with props: ", props)
+    if(tuple(individual) in fitness_cache):
+        print("using cached fitness value")
+        return fitness_cache[tuple(individual)],
     learning_rate = props["learning_rate"]
-    neurons = props["neurons"]
+    n_layers = props["n_layers"]
+    max_neurons = props["max_neurons"]
     model = KerasClassifier(build_fn=create_model, epochs=10, batch_size=10, verbose=0)
-    model = model.set_params(learning_rate=learning_rate, neurons=int(neurons))
+    model = model.set_params(learning_rate=learning_rate, n_layers=n_layers, max_neurons=max_neurons)
     model.fit(X_train, y_train)
     accuracy = model.score(X_test, y_test)
     print("accuracy: ", accuracy)
+    fitness_cache[tuple(individual)] = accuracy
     return accuracy,
 
 # Register parameters for GA
@@ -85,7 +96,8 @@ toolbox = base.Toolbox()
 
 GENOTYPE_SPEC = [
     {"name": "learning_rate", "type": "float_range", "bounds": [0.001, 0.1]},
-    {"name": "neurons", "type": "int_range", "bounds": [1, 100]}
+    {"name": "n_layers", "type": "int_range", "bounds": [0, 10]},
+    {"name": "max_neurons", "type": "int_range", "bounds": [50, 300]}
 ]
 
 for gene in GENOTYPE_SPEC:
@@ -95,7 +107,7 @@ for gene in GENOTYPE_SPEC:
         toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
 
 toolbox.register("individual", tools.initCycle, creator.Individual,
-                 (toolbox.attr_learning_rate, toolbox.attr_neurons), n=1)
+                 (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons), n=1)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("evaluate", eval_nn)
@@ -113,7 +125,7 @@ stats.register("max", np.max)
 result, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=PROB_MUTATION, ngen=GENERATIONS, stats=stats, halloffame=hof, verbose=True)
 
 best_individual = hof[0]
-print("Best individual: " + str(best_individual))
+print("Best individual: ", parse_genotype(best_individual))
 print("best individual fitness: " + str(best_individual.fitness))
 print(log)
 print("surviving population:")
