@@ -1,6 +1,7 @@
 from deap import base, creator, tools, algorithms
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
+import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.wrappers.scikit_learn import KerasClassifier
@@ -11,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from custom_deap_tools import my_mutGaussian, my_HallOfFame
+from embeddings import sentence_embedding
 
 # Load your data
 # Assuming df is your DataFrame and it has columns 'text' and 'label'
@@ -21,15 +23,14 @@ LABEL_COLUMN = 'sentiment'
 GENERATIONS = 10
 N_POPULATION = 3
 PROB_MUTATION = 0.2
-MAX_SAMPLE_SIZE_DS = 3000
+MAX_SAMPLE_SIZE_DS = 100
 N_NEURONS = 100
 NEURONS_CHANGE_FACTOR = 0.8 # reduce neurons by 20% each layer
 df = pd.read_csv(DS_PATH)
 #downsize df to max 3000 rows
 df = df.sample(n=MAX_SAMPLE_SIZE_DS, random_state=RANDOM_SEED)
 # Preprocess text data to convert it into numerical data
-vectorizer = TfidfVectorizer()
-X = vectorizer.fit_transform(df[TEXT_COLUMN]).toarray()
+X = np.array(df[TEXT_COLUMN])
 y = df[LABEL_COLUMN]
 
 # Encode class values as integers
@@ -43,10 +44,10 @@ y = np_utils.to_categorical(encoded_Y)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
 # Define method to create model
-def create_model(learning_rate=0.01, n_layers=0, max_neurons=100):
+def create_model(input_dim, learning_rate=0.01, n_layers=0, max_neurons=100):
     model = Sequential()
     neurons = max_neurons
-    model.add(Dense(neurons, input_dim=X_train.shape[1], activation='relu'))
+    model.add(Dense(neurons, input_dim=input_dim, activation='relu'))
     for i in range(n_layers):
         neurons = int(neurons * NEURONS_CHANGE_FACTOR) # reduce neurons by a fixed rate each layer
         model.add(Dense(neurons, activation='relu'))
@@ -69,6 +70,12 @@ def parse_genotype(individual):
 
     return r
 
+def sentence_vectorizer(X_train, X_test):
+    # Preprocess text data to convert it into numerical data
+    X_train_emb = sentence_embedding(X_train)
+    X_test_emb = sentence_embedding(X_test)
+    return X_train_emb, X_test_emb
+
 fitness_cache = {}
 # Define method for evaluation
 def eval_nn(individual):
@@ -80,10 +87,15 @@ def eval_nn(individual):
     learning_rate = props["learning_rate"]
     n_layers = props["n_layers"]
     max_neurons = props["max_neurons"]
+    X_train_emb, X_test_emb = sentence_vectorizer(X_train, X_test)
     model = KerasClassifier(build_fn=create_model, epochs=10, batch_size=10, verbose=0)
-    model = model.set_params(learning_rate=learning_rate, n_layers=n_layers, max_neurons=max_neurons)
-    model.fit(X_train, y_train)
-    accuracy = model.score(X_test, y_test)
+    model = model.set_params(input_dim=X_train_emb[0].shape[0], learning_rate=learning_rate, n_layers=n_layers, max_neurons=max_neurons)
+    X_train_emb = tf.stack(X_train_emb)
+    X_test_emb = tf.stack(X_test_emb)
+    y_train_stacked = tf.stack(y_train)
+    y_test_stacked = tf.stack(y_test)
+    model.fit(X_train_emb, y_train_stacked)
+    accuracy = model.score(X_test_emb, y_test_stacked)
     print("accuracy: ", accuracy)
     fitness_cache[tuple(individual)] = accuracy
     return accuracy,
