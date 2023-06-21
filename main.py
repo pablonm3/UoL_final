@@ -20,11 +20,10 @@ DS_PATH = 'datasets/IMDB_Dataset.csv'
 RANDOM_SEED = 42
 TEXT_COLUMN = 'review'
 LABEL_COLUMN = 'sentiment'
-GENERATIONS = 10
+GENERATIONS = 15
 N_POPULATION = 3
 PROB_MUTATION = 0.2
-MAX_SAMPLE_SIZE_DS = 100
-N_NEURONS = 100
+MAX_SAMPLE_SIZE_DS = 150
 NEURONS_CHANGE_FACTOR = 0.8 # reduce neurons by 20% each layer
 df = pd.read_csv(DS_PATH)
 #downsize df to max 3000 rows
