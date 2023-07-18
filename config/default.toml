@@ -6,3 +6,6 @@ PROB_MUTATION = 0.2
 MAX_SAMPLE_SIZE_DS = 150
 NEURONS_CHANGE_FACTOR = 0.8 # reduce neurons by 20% each layer
 DS_PATH = 'datasets/IMDB_Dataset.csv'
+
+[FROZEN_PARAMETERS] # used for testing: freeze parameters to a specific value
+    PARAMETER_NAME = "PARAMETER_VALUE_TO_FREEZE"

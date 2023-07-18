@@ -1,0 +1,2 @@
+[FROZEN_PARAMETERS] # used for testing: freeze parameters to a specific value
+    n_layers = 0

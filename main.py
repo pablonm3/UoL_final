@@ -21,18 +21,6 @@ project_path = pathlib.Path(__file__).parent.resolve()
 RANDOM_SEED = 42
 
 
-def parse_genotype(individual):
-    # convert framework gene: between 0 and 1 to fenotype, real value used by my pipeline/model
-    r = {}
-    for i, gene in enumerate(individual):
-        if GENOTYPE_SPEC[i]["type"] == "float_range":
-            r[GENOTYPE_SPEC[i]["name"]] = GENOTYPE_SPEC[i]["bounds"][0] + gene * (
-                        GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0])
-        elif GENOTYPE_SPEC[i]["type"] == "int_range":
-            r[GENOTYPE_SPEC[i]["name"]] = int(GENOTYPE_SPEC[i]["bounds"][0] + gene * (
-                        GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0]))
-
-    return r
 
 def sentence_vectorizer(X_train, X_test):
     # Preprocess text data to convert it into numerical data
@@ -85,6 +73,23 @@ class GA:
         # Train test split
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
+  def parse_genotype(self, individual):
+    # convert framework gene: between 0 and 1 to fenotype, real value used by my pipeline/model
+    r = {}
+    FROZEN_PARAMETERS = self.config["FROZEN_PARAMETERS"]
+    for i, gene in enumerate(individual):
+        gene_name = GENOTYPE_SPEC[i]["name"]
+        if(gene_name in FROZEN_PARAMETERS):
+            print(f"OVERWRITING PARAMETER {gene_name} FOR TESTING WITH VALUE: {FROZEN_PARAMETERS[gene_name]}")
+            r[gene_name] = FROZEN_PARAMETERS[gene_name]
+        elif GENOTYPE_SPEC[i]["type"] == "float_range":
+            r[gene_name] = GENOTYPE_SPEC[i]["bounds"][0] + gene * (
+                        GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0])
+        elif GENOTYPE_SPEC[i]["type"] == "int_range":
+            r[gene_name] = int(GENOTYPE_SPEC[i]["bounds"][0] + gene * (
+                        GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0]))
+
+    return r
   def create_model(self, input_dim, learning_rate=0.01, n_layers=0, max_neurons=100):
       # Define method to create model
       NEURONS_CHANGE_FACTOR = self.config["NEURONS_CHANGE_FACTOR"]
@@ -101,11 +106,11 @@ class GA:
 
   def eval_nn(self, individual):
       # method for evaluation
-      props = parse_genotype(individual)
+      props = self.parse_genotype(individual)
       print("raw values individual: ", individual)
       print("evaluating individual with props: ", props)
       if (tuple(individual) in self.fitness_cache):
-          print("using cached fitness value")
+          print("using cached fitness value for key: ", tuple(individual) )
           return self.fitness_cache[tuple(individual)],
       learning_rate = props["learning_rate"]
       n_layers = props["n_layers"]
@@ -147,7 +152,7 @@ class GA:
                                       halloffame=hof, verbose=True)
 
     best_individual = hof[0]
-    print("Best individual: ", parse_genotype(best_individual))
+    print("Best individual: ", self.parse_genotype(best_individual))
     print("best individual fitness: " + str(best_individual.fitness))
     print(log)
     print("surviving population:")
