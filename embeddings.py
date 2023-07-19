@@ -12,8 +12,7 @@ def sentence_embedding(sentences):
 
     for sentence in sentences:
         # Add special tokens takes care of adding [CLS], [SEP], <s>... tokens in the right way for each model.
-        #encoded_input = tokenizer(text, return_tensors='tf')
-        input_ids = tokenizer.encode(sentence, add_special_tokens=True, return_tensors='tf')
+        input_ids = tokenizer.encode(sentence, add_special_tokens=True, return_tensors='tf', max_length=MAX_TOKENS, truncation=True)
         input_ids = input_ids[0][:MAX_TOKENS] # truncate to max tokens supported by model
         input_ids = tf.expand_dims(input_ids, 0)  # Batch size 1
         outputs = model(input_ids)

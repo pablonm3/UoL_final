@@ -16,6 +16,8 @@ from configReader import get_config
 
 from custom_deap_tools import my_mutGaussian, my_HallOfFame
 from embeddings import sentence_embedding
+from utils import save_log
+
 project_path = pathlib.Path(__file__).parent.resolve()
 
 RANDOM_SEED = 42
@@ -155,6 +157,7 @@ class GA:
     print("Best individual: ", self.parse_genotype(best_individual))
     print("best individual fitness: " + str(best_individual.fitness))
     print(log)
+    save_log(log, self.config["LOG_FILE_DIR"])
     print("surviving population:")
     print(pop)
 
