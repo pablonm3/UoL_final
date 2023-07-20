@@ -48,27 +48,6 @@ for gene in GENOTYPE_SPEC:
         toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
     elif gene["type"] == "int_range":
         toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
-def calculate_macro_f1_score(y_true, y_pred):
-    """
-    Function to compute the macro-average f1 score given the one hot encoded true labels and predicted class labels.
-
-    Parameters:
-    y_true : list
-        A list of one-hot encoded numerical classes
-    y_pred : list
-        A list of predicted class labels
-
-    Returns:
-    float
-        The macro-average F1 score
-    """
-    # Converting one hot encoded y_true to class labels
-    y_true_labels = [np.where(labels == 1)[0][0] for labels in y_true]
-
-    # Calculating Macro average F1 score
-    score = f1_score(y_true_labels, y_pred, average='macro')
-
-    return score
 
 class GA:
 # GA class runner
@@ -91,11 +70,12 @@ class GA:
         encoder = LabelEncoder()
         encoder.fit(y)
         encoded_Y = encoder.transform(y)
-        # Convert integers to dummy variables (i.e. one hot encoded)
-        y = np_utils.to_categorical(encoded_Y)
 
         # Train test split
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, encoded_Y, test_size=0.2, random_state=RANDOM_SEED)
+        # Convert integers to dummy variables (i.e. one hot encoded)
+        self.y_train_ohe = np_utils.to_categorical(self.y_train)
+
 
   def parse_genotype(self, individual):
     # convert framework gene: between 0 and 1 to fenotype, real value used by my pipeline/model
@@ -123,7 +103,7 @@ class GA:
       for i in range(n_layers):
           neurons = int(neurons * NEURONS_CHANGE_FACTOR)  # reduce neurons by a fixed rate each layer
           model.add(Dense(neurons, activation='relu'))
-      model.add(Dense(self.y_train.shape[1], activation='softmax'))
+      model.add(Dense(self.y_train_ohe.shape[1], activation='softmax'))
       optimizer = Adam(learning_rate=learning_rate)
       model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
       return model
@@ -145,11 +125,10 @@ class GA:
                                max_neurons=max_neurons)
       X_train_emb = tf.stack(X_train_emb)
       X_test_emb = tf.stack(X_test_emb)
-      y_train_stacked = tf.stack(self.y_train)
-      y_test_stacked = tf.stack(self.y_test)
-      model.fit(X_train_emb, y_train_stacked)
+      y_train_ohe_stacked = tf.stack(self.y_train_ohe)
+      model.fit(X_train_emb, y_train_ohe_stacked)
       predictions = model.predict(X_test_emb)
-      f1_macro_score = calculate_macro_f1_score(self.y_test, predictions)
+      f1_macro_score = f1_score(self.y_test, predictions, average='macro')
       print("f1_macro_score: ", f1_macro_score)
       self.fitness_cache[tuple(individual)] = f1_macro_score
       return f1_macro_score,
