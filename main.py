@@ -17,6 +17,7 @@ from configReader import get_config
 from custom_deap_tools import my_mutGaussian, my_HallOfFame
 from embeddings import sentence_embedding
 from utils import save_log
+from sklearn.metrics import f1_score
 
 project_path = pathlib.Path(__file__).parent.resolve()
 
@@ -47,9 +48,30 @@ for gene in GENOTYPE_SPEC:
         toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
     elif gene["type"] == "int_range":
         toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
+def calculate_macro_f1_score(y_true, y_pred):
+    """
+    Function to compute the macro-average f1 score given the one hot encoded true labels and predicted class labels.
 
-# GA class runner
+    Parameters:
+    y_true : list
+        A list of one-hot encoded numerical classes
+    y_pred : list
+        A list of predicted class labels
+
+    Returns:
+    float
+        The macro-average F1 score
+    """
+    # Converting one hot encoded y_true to class labels
+    y_true_labels = [np.where(labels == 1)[0][0] for labels in y_true]
+
+    # Calculating Macro average F1 score
+    score = f1_score(y_true_labels, y_pred, average='macro')
+
+    return score
+
 class GA:
+# GA class runner
   def __init__(self, config_name):
         self.config = get_config(config_name, f"{project_path}/config")
         self.fitness_cache = {}
@@ -126,10 +148,11 @@ class GA:
       y_train_stacked = tf.stack(self.y_train)
       y_test_stacked = tf.stack(self.y_test)
       model.fit(X_train_emb, y_train_stacked)
-      accuracy = model.score(X_test_emb, y_test_stacked)
-      print("accuracy: ", accuracy)
-      self.fitness_cache[tuple(individual)] = accuracy
-      return accuracy,
+      predictions = model.predict(X_test_emb)
+      f1_macro_score = calculate_macro_f1_score(self.y_test, predictions)
+      print("f1_macro_score: ", f1_macro_score)
+      self.fitness_cache[tuple(individual)] = f1_macro_score
+      return f1_macro_score,
   def run(self):
     PROB_MUTATION = self.config["PROB_MUTATION"]
     N_POPULATION = self.config["N_POPULATION"]
