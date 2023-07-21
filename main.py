@@ -1,10 +1,11 @@
 import argparse
+import math
 
 from deap import base, creator, tools, algorithms
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Dropout
 from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.preprocessing import LabelEncoder
 from keras.utils import np_utils
@@ -40,14 +41,13 @@ toolbox = base.Toolbox()
 GENOTYPE_SPEC = [
     {"name": "learning_rate", "type": "float_range", "bounds": [0.001, 0.1]},
     {"name": "n_layers", "type": "int_range", "bounds": [0, 10]},
-    {"name": "max_neurons", "type": "int_range", "bounds": [50, 300]}
+    {"name": "max_neurons", "type": "int_range", "bounds": [50, 300]},
+    {"name": "per_dropout", "type": "float_range", "bounds": [0, 0.2]},
+    {"name": "dropout_in_layers", "type": "cat", "options": ["none", "all", "input"]},
 ]
 
 for gene in GENOTYPE_SPEC:
-    if gene["type"] == "float_range":
-        toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
-    elif gene["type"] == "int_range":
-        toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
+    toolbox.register("attr_" + gene["name"], np.random.uniform, 0, 1)
 
 class GA:
 # GA class runner
@@ -92,17 +92,25 @@ class GA:
         elif GENOTYPE_SPEC[i]["type"] == "int_range":
             r[gene_name] = int(GENOTYPE_SPEC[i]["bounds"][0] + gene * (
                         GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0]))
+        elif GENOTYPE_SPEC[i]["type"] == "cat":
+            options = GENOTYPE_SPEC[i]["options"]
+            index = math.floor(gene * len(options))
+            r[gene_name] = options[index]
 
     return r
-  def create_model(self, input_dim, learning_rate=0.01, n_layers=0, max_neurons=100):
+  def create_model(self, input_dim, learning_rate, n_layers, max_neurons, dropout_in_layers, per_dropout):
       # Define method to create model
       NEURONS_CHANGE_FACTOR = self.config["NEURONS_CHANGE_FACTOR"]
       model = Sequential()
       neurons = max_neurons
       model.add(Dense(neurons, input_dim=input_dim, activation='relu'))
+      if(dropout_in_layers in ["all", "input"]):
+          model.add(Dropout(per_dropout))
       for i in range(n_layers):
           neurons = int(neurons * NEURONS_CHANGE_FACTOR)  # reduce neurons by a fixed rate each layer
           model.add(Dense(neurons, activation='relu'))
+          if (dropout_in_layers in ["all"]):
+              model.add(Dropout(per_dropout))
       model.add(Dense(self.y_train_ohe.shape[1], activation='softmax'))
       optimizer = Adam(learning_rate=learning_rate)
       model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
@@ -119,10 +127,12 @@ class GA:
       learning_rate = props["learning_rate"]
       n_layers = props["n_layers"]
       max_neurons = props["max_neurons"]
+      dropout_in_layers = props["dropout_in_layers"]
+      per_dropout = props["per_dropout"]
       X_train_emb, X_test_emb = sentence_vectorizer(self.X_train, self.X_test)
       model = KerasClassifier(build_fn=self.create_model, epochs=10, batch_size=10, verbose=0)
       model = model.set_params(input_dim=X_train_emb[0].shape[0], learning_rate=learning_rate, n_layers=n_layers,
-                               max_neurons=max_neurons)
+                               max_neurons=max_neurons, dropout_in_layers=dropout_in_layers, per_dropout=per_dropout)
       X_train_emb = tf.stack(X_train_emb)
       X_test_emb = tf.stack(X_test_emb)
       y_train_ohe_stacked = tf.stack(self.y_train_ohe)
@@ -137,7 +147,7 @@ class GA:
     N_POPULATION = self.config["N_POPULATION"]
     GENERATIONS = self.config["GENERATIONS"]
     toolbox.register("individual", tools.initCycle, creator.Individual,
-                     (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons), n=1)
+                     (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons, toolbox.attr_dropout_in_layers, toolbox.attr_per_dropout), n=1)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     toolbox.register("evaluate", self.eval_nn)
