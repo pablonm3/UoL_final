@@ -28,9 +28,9 @@ def my_mutGaussian(individual, mu, sigma, indpb):
     # ensure no gene is out of range
     for i in range(len(individual)):
         gene = individual[i]
-        # genes are between 0 and 1 but could be outside bounds due to mutation, fix this.
+        # genes are between 0(inclusive) and 1(exclusive) but could be outside bounds due to mutation, fix this.
         if (gene > 1):
-            bounded_gene = 1
+            bounded_gene = 0.9999
         elif (gene < 0):
             bounded_gene = 0
         else:

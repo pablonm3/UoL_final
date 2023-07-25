@@ -40,10 +40,12 @@ toolbox = base.Toolbox()
 
 GENOTYPE_SPEC = [
     {"name": "learning_rate", "type": "float_range", "bounds": [0.001, 0.1]},
-    {"name": "n_layers", "type": "int_range", "bounds": [0, 10]},
-    {"name": "max_neurons", "type": "int_range", "bounds": [50, 300]},
+    {"name": "n_layers", "type": "int_range", "bounds": [0, 11]}, # max n layers=10
+    {"name": "max_neurons", "type": "int_range", "bounds": [50, 301]}, # max value=300
     {"name": "per_dropout", "type": "float_range", "bounds": [0, 0.2]},
     {"name": "dropout_in_layers", "type": "cat", "options": ["none", "all", "input"]},
+    {"name": "epochs", "type": "int_range", "bounds": [1, 11]},# max epochs=10
+    {"name": "batch_size", "type": "cat", "options": [1, 2, 4, 8, 16]}
 ]
 
 for gene in GENOTYPE_SPEC:
@@ -87,11 +89,13 @@ class GA:
             print(f"OVERWRITING PARAMETER {gene_name} FOR TESTING WITH VALUE: {FROZEN_PARAMETERS[gene_name]}")
             r[gene_name] = FROZEN_PARAMETERS[gene_name]
         elif GENOTYPE_SPEC[i]["type"] == "float_range":
+            # scale the gene value between 0(inclusive) and 1(exclusive) to a value between both bounds low(inclusive) and high(exlusive)
             r[gene_name] = GENOTYPE_SPEC[i]["bounds"][0] + gene * (
                         GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0])
         elif GENOTYPE_SPEC[i]["type"] == "int_range":
+            # scale the gene value between 0(inclusive) and 1(exclusive) to a value between both bounds low(inclusive) and high(exlusive)
             r[gene_name] = int(GENOTYPE_SPEC[i]["bounds"][0] + gene * (
-                        GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0]))
+                        GENOTYPE_SPEC[i]["bounds"][1] - GENOTYPE_SPEC[i]["bounds"][0]) )
         elif GENOTYPE_SPEC[i]["type"] == "cat":
             options = GENOTYPE_SPEC[i]["options"]
             index = math.floor(gene * len(options))
@@ -129,6 +133,8 @@ class GA:
       max_neurons = props["max_neurons"]
       dropout_in_layers = props["dropout_in_layers"]
       per_dropout = props["per_dropout"]
+      epochs = props["epochs"]
+      batch_size = props["batch_size"]
       X_train_emb, X_test_emb = sentence_vectorizer(self.X_train, self.X_test)
       model = KerasClassifier(build_fn=self.create_model, epochs=10, batch_size=10, verbose=0)
       model = model.set_params(input_dim=X_train_emb[0].shape[0], learning_rate=learning_rate, n_layers=n_layers,
@@ -136,7 +142,7 @@ class GA:
       X_train_emb = tf.stack(X_train_emb)
       X_test_emb = tf.stack(X_test_emb)
       y_train_ohe_stacked = tf.stack(self.y_train_ohe)
-      model.fit(X_train_emb, y_train_ohe_stacked)
+      model.fit(X_train_emb, y_train_ohe_stacked, batch_size=batch_size, epochs=epochs)
       predictions = model.predict(X_test_emb)
       f1_macro_score = f1_score(self.y_test, predictions, average='macro')
       print("f1_macro_score: ", f1_macro_score)
@@ -147,7 +153,7 @@ class GA:
     N_POPULATION = self.config["N_POPULATION"]
     GENERATIONS = self.config["GENERATIONS"]
     toolbox.register("individual", tools.initCycle, creator.Individual,
-                     (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons, toolbox.attr_dropout_in_layers, toolbox.attr_per_dropout), n=1)
+                     (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons, toolbox.attr_dropout_in_layers, toolbox.attr_per_dropout, toolbox.attr_epochs, toolbox.attr_batch_size), n=1)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     toolbox.register("evaluate", self.eval_nn)
