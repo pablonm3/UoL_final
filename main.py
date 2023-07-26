@@ -42,7 +42,7 @@ GENOTYPE_SPEC = [
     {"name": "epochs", "type": "int_range", "bounds": [1, 11]},# max epochs=10
     {"name": "batch_size", "type": "cat", "options": [1, 2, 4, 8, 16]},
     {"name": "emb_model_name", "type": "cat", "options": ["bert-base-uncased", "roberta-base", "intfloat/e5-small-v2", "intfloat/e5-base-v2", "intfloat/e5-large-v2"]},
-    {"name": "emb_comb_strategy", "type": "cat", "options": ["mean", "first_token"]},
+    {"name": "emb_comb_strategy", "type": "cat", "options": ["mean", "first_token", "sum", "concat", "max"]},
 ]
 
 for gene in GENOTYPE_SPEC:
