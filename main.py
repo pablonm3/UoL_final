@@ -16,7 +16,7 @@ import pathlib
 from configReader import get_config
 
 from custom_deap_tools import my_mutGaussian, my_HallOfFame
-from embeddings import sentence_embedding
+from embeddings import EmbeddingGenerator
 from utils import save_log
 from sklearn.metrics import f1_score
 
@@ -26,11 +26,6 @@ RANDOM_SEED = 42
 
 
 
-def sentence_vectorizer(X_train, X_test):
-    # Preprocess text data to convert it into numerical data
-    X_train_emb = sentence_embedding(X_train)
-    X_test_emb = sentence_embedding(X_test)
-    return X_train_emb, X_test_emb
 
 # Register parameters for GA
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -45,7 +40,9 @@ GENOTYPE_SPEC = [
     {"name": "per_dropout", "type": "float_range", "bounds": [0, 0.2]},
     {"name": "dropout_in_layers", "type": "cat", "options": ["none", "all", "input"]},
     {"name": "epochs", "type": "int_range", "bounds": [1, 11]},# max epochs=10
-    {"name": "batch_size", "type": "cat", "options": [1, 2, 4, 8, 16]}
+    {"name": "batch_size", "type": "cat", "options": [1, 2, 4, 8, 16]},
+    {"name": "emb_model_name", "type": "cat", "options": ["bert-base-uncased", "roberta-base", "intfloat/e5-small-v2", "intfloat/e5-base-v2", "intfloat/e5-large-v2"]},
+    {"name": "emb_comb_strategy", "type": "cat", "options": ["mean", "first_token"]},
 ]
 
 for gene in GENOTYPE_SPEC:
@@ -56,6 +53,7 @@ class GA:
   def __init__(self, config_name):
         self.config = get_config(config_name, f"{project_path}/config")
         self.fitness_cache = {}
+        self.vectorizers_cache = {}
         DS_PATH = self.config["DS_PATH"]
         MAX_SAMPLE_SIZE_DS = self.config["MAX_SAMPLE_SIZE_DS"]
         TEXT_COLUMN = self.config["TEXT_COLUMN"]
@@ -66,7 +64,7 @@ class GA:
         # downsize df to max 3000 rows
         df = df.sample(n=MAX_SAMPLE_SIZE_DS, random_state=RANDOM_SEED)
         # Preprocess text data to convert it into numerical data
-        X = np.array(df[TEXT_COLUMN])
+        X = df[TEXT_COLUMN].tolist()
         y = df[LABEL_COLUMN]
         # Encode class values as integers
         encoder = LabelEncoder()
@@ -78,6 +76,16 @@ class GA:
         # Convert integers to dummy variables (i.e. one hot encoded)
         self.y_train_ohe = np_utils.to_categorical(self.y_train)
 
+  def sentence_vectorizer(self, model_name, X_train, X_test, comb_strategy):
+        # Preprocess text data to convert it into numerical data
+        if(model_name in self.vectorizers_cache):
+            vectorizer = self.vectorizers_cache[model_name]
+        else:
+            vectorizer = EmbeddingGenerator(model_name)
+            self.vectorizers_cache[model_name] = vectorizer
+        X_train_emb = vectorizer.sentence_embedding(X_train, comb_strategy)
+        X_test_emb = vectorizer.sentence_embedding(X_test, comb_strategy)
+        return X_train_emb, X_test_emb
 
   def parse_genotype(self, individual):
     # convert framework gene: between 0 and 1 to fenotype, real value used by my pipeline/model
@@ -135,7 +143,9 @@ class GA:
       per_dropout = props["per_dropout"]
       epochs = props["epochs"]
       batch_size = props["batch_size"]
-      X_train_emb, X_test_emb = sentence_vectorizer(self.X_train, self.X_test)
+      emb_model_name = props["emb_model_name"]
+      emb_comb_strategy = props["emb_comb_strategy"]
+      X_train_emb, X_test_emb = self.sentence_vectorizer(emb_model_name, self.X_train, self.X_test, emb_comb_strategy)
       model = KerasClassifier(build_fn=self.create_model, epochs=10, batch_size=10, verbose=0)
       model = model.set_params(input_dim=X_train_emb[0].shape[0], learning_rate=learning_rate, n_layers=n_layers,
                                max_neurons=max_neurons, dropout_in_layers=dropout_in_layers, per_dropout=per_dropout)
@@ -153,7 +163,8 @@ class GA:
     N_POPULATION = self.config["N_POPULATION"]
     GENERATIONS = self.config["GENERATIONS"]
     toolbox.register("individual", tools.initCycle, creator.Individual,
-                     (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons, toolbox.attr_dropout_in_layers, toolbox.attr_per_dropout, toolbox.attr_epochs, toolbox.attr_batch_size), n=1)
+                     (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons, toolbox.attr_dropout_in_layers, toolbox.attr_per_dropout, toolbox.attr_epochs, toolbox.attr_batch_size, toolbox.attr_emb_model_name,
+                      toolbox.attr_emb_comb_strategy), n=1)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     toolbox.register("evaluate", self.eval_nn)

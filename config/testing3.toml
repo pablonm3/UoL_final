@@ -1,5 +1,9 @@
-GENERATIONS = 35
+GENERATIONS = 50
 N_POPULATION = 5
-MAX_SAMPLE_SIZE_DS = 20 # shall be 150
+MAX_SAMPLE_SIZE_DS = 200 # shall be 150
 DS_PATH = 'datasets/IMDB_Dataset.csv'
 LOG_FILE_DIR = 'logs_test'
+
+[FROZEN_PARAMETERS] # used for testing: freeze parameters to a specific value
+    #emb_model_name = 'roberta-base'
+    #emb_comb_strategy = 'mean'

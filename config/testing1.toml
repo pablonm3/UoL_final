@@ -6,3 +6,5 @@ LOG_FILE_DIR = 'logs_test'
 
 [FROZEN_PARAMETERS] # used for testing: freeze parameters to a specific value
     n_layers = 0
+    emb_model_name = 'intfloat/e5-small-v2'
+    emb_comb_strategy = 'first_token'
