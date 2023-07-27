@@ -1,9 +1,12 @@
 import redis
 import tensorflow as tf
+from configReader import get_config
 
 class RedisCache:
-    def __init__(self, host='localhost', port=6379, db=0):
+    def __init__(self, clear_cache, host='localhost', port=6379, db=0):
         self.redis = redis.Redis(host=host, port=port, db=db)
+        if clear_cache:
+            self.clear()
 
     def set(self, key, value):
         serialized_value = tf.io.serialize_tensor(value).numpy()

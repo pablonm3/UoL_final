@@ -82,7 +82,7 @@ class GA:
         if(model_name in self.vectorizers_cache):
             vectorizer = self.vectorizers_cache[model_name]
         else:
-            vectorizer = EmbeddingGenerator(model_name)
+            vectorizer = EmbeddingGenerator(self.config, model_name)
             self.vectorizers_cache[model_name] = vectorizer
         X_train_emb = vectorizer.sentence_embedding(X_train, comb_strategy)
         X_test_emb = vectorizer.sentence_embedding(X_test, comb_strategy)

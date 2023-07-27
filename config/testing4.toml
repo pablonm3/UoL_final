@@ -3,7 +3,7 @@ N_POPULATION = 10
 MAX_SAMPLE_SIZE_DS = 200 # shall be 150
 DS_PATH = 'datasets/IMDB_Dataset.csv'
 LOG_FILE_DIR = 'logs_test'
-
+CLEAR_CACHE = false
 [FROZEN_PARAMETERS] # used for testing: freeze parameters to a specific value
-    #emb_model_name = 'bert-base-uncased'
+    emb_model_name = 'roberta-base'
     #emb_comb_strategy = 'concat'

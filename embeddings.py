@@ -23,12 +23,16 @@ def concat_pool(last_hidden_states):
 
 
 class EmbeddingGenerator:
-    cache = RedisCache()
-    def __init__(self, model_name):
+    cache = None
+    def __init__(self, config, model_name):
         self.model_name = model_name
+        self.config = config
+        if(not EmbeddingGenerator.cache):
+            clear_cache = self.config["CLEAR_CACHE"]
+            EmbeddingGenerator.cache = RedisCache(clear_cache)
         # Load pre-trained model tokenizer (BERT-base uncased)
-        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-        self.model = TFAutoModel.from_pretrained("bert-base-uncased")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = TFAutoModel.from_pretrained(model_name)
         self.max_tokens = 512  # FIXME this depends on the model
     def sentence_embedding(self, sentences, comb_strategy):
         sentence_text = ".".join(sentences) # convert list to string, md5 doesn't support lists
