@@ -1,5 +1,6 @@
 import argparse
 import math
+import time
 
 from deap import base, creator, tools, algorithms
 from sklearn.model_selection import train_test_split
@@ -179,6 +180,8 @@ class GA:
     stats.register("std", np.std)
     stats.register("min", np.min)
     stats.register("max", np.max)
+    start_epoch_time = int(time.time())
+    stats.register("time", lambda _: int(time.time()) - start_epoch_time)
     result, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=PROB_MUTATION, ngen=GENERATIONS, stats=stats,
                                       halloffame=hof, verbose=True)
 

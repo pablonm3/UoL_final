@@ -1,5 +1,10 @@
+import hashlib
+
 import tensorflow as tf
 from transformers import AutoTokenizer, TFAutoModel
+
+from cache import RedisCache
+
 
 def average_pool(last_hidden_states):
     # adapted for Tensorflow from: https://www.kaggle.com/code/pablomarino/from-shallow-learning-to-2020-sota-gpt-2-roberta?scriptVersionId=38895686&cellId=108
@@ -18,20 +23,22 @@ def concat_pool(last_hidden_states):
 
 
 class EmbeddingGenerator:
+    cache = RedisCache()
     def __init__(self, model_name):
         self.model_name = model_name
         # Load pre-trained model tokenizer (BERT-base uncased)
         self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
         self.model = TFAutoModel.from_pretrained("bert-base-uncased")
         self.max_tokens = 512  # FIXME this depends on the model
-        self.cache = {}
     def sentence_embedding(self, sentences, comb_strategy):
-        _hash = hash(tuple(sentences))
-        if(_hash in self.cache):
-            print("sentence_embedding cache hit, hash:", _hash)
-            last_hidden_state = self.cache[_hash]
+        sentence_text = ".".join(sentences) # convert list to string, md5 doesn't support lists
+        hash = hashlib.md5(sentence_text.encode('utf-8')).hexdigest()
+        key = hash + "_" + self.model_name
+        if(self.cache.exists(key)):
+            print("sentence_embedding cache hit, hash:", key)
+            last_hidden_state = self.cache.get(key)
         else:
-            print("sentence_embedding cache miss hash: ", _hash)
+            print("sentence_embedding cache miss hash: ", key)
             # adapted for tensorflow from source: https://huggingface.co/intfloat/e5-small-v2#usage
             # removed normalization step due to research that suggest that vector length may contain valuable information: https://arxiv.org/abs/1508.02297
             # Add special tokens takes care of adding [CLS], [SEP], <s>... tokens in the right way for each model.
@@ -42,7 +49,7 @@ class EmbeddingGenerator:
             batch_dict = self.tokenizer(sentences, add_special_tokens=True, return_tensors='tf', max_length=self.max_tokens, truncation=True, padding=True)
             outputs = self.model(**batch_dict)
             last_hidden_state = outputs.last_hidden_state
-            self.cache[_hash] = last_hidden_state
+            self.cache.set(key, last_hidden_state)
         if(comb_strategy == "mean"):
             embeddings = average_pool(last_hidden_state)
         elif (comb_strategy == "sum"):
