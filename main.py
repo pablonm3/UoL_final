@@ -18,6 +18,7 @@ from configReader import get_config
 
 from custom_deap_tools import my_mutGaussian, my_HallOfFame
 from embeddings import EmbeddingGenerator
+from textPreprocessor import TextPreprocessor
 from utils import save_log
 from sklearn.metrics import f1_score
 
@@ -44,6 +45,11 @@ GENOTYPE_SPEC = [
     {"name": "batch_size", "type": "cat", "options": [1, 2, 4, 8, 16]},
     {"name": "emb_model_name", "type": "cat", "options": ["bert-base-uncased", "roberta-base", "intfloat/e5-small-v2", "intfloat/e5-base-v2", "intfloat/e5-large-v2"]},
     {"name": "emb_comb_strategy", "type": "cat", "options": ["mean", "first_token", "sum", "concat", "max"]},
+    {"name": "preprop_rem_stopwords", "type": "cat", "options": [True, False]},
+    {"name": "preprop_word_normalization", "type": "cat", "options": ["lemmatization", "stemming", None]},
+    {"name": "preprop_lowercasing", "type": "cat", "options": [True, False]},
+    {"name": "preprop_remove_punctuation", "type": "cat", "options": [True, False]},
+    {"name": "preprop_TFIDF_word_removal", "type": "cat", "options": [True, False]},
 ]
 
 for gene in GENOTYPE_SPEC:
@@ -76,6 +82,7 @@ class GA:
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, encoded_Y, test_size=0.2, random_state=RANDOM_SEED)
         # Convert integers to dummy variables (i.e. one hot encoded)
         self.y_train_ohe = np_utils.to_categorical(self.y_train)
+        self.textPreprocessor = TextPreprocessor()
 
   def sentence_vectorizer(self, model_name, X_train, X_test, comb_strategy):
         # Preprocess text data to convert it into numerical data
@@ -146,7 +153,14 @@ class GA:
       batch_size = props["batch_size"]
       emb_model_name = props["emb_model_name"]
       emb_comb_strategy = props["emb_comb_strategy"]
-      X_train_emb, X_test_emb = self.sentence_vectorizer(emb_model_name, self.X_train, self.X_test, emb_comb_strategy)
+      preprop_rem_stopwords = props["preprop_rem_stopwords"]
+      preprop_word_normalization = props["preprop_word_normalization"]
+      preprop_lowercasing = props["preprop_lowercasing"]
+      preprop_remove_punctuation = props["preprop_remove_punctuation"]
+      preprop_TFIDF_word_removal = props["preprop_TFIDF_word_removal"]
+      X_train_preproped = self.textPreprocessor.run(self.X_train, preprop_rem_stopwords, preprop_word_normalization, preprop_lowercasing, preprop_remove_punctuation, preprop_TFIDF_word_removal)
+      X_test_preproped = self.textPreprocessor.run(self.X_test, preprop_rem_stopwords, preprop_word_normalization, preprop_lowercasing, preprop_remove_punctuation, preprop_TFIDF_word_removal)
+      X_train_emb, X_test_emb = self.sentence_vectorizer(emb_model_name, X_train_preproped, X_test_preproped, emb_comb_strategy)
       model = KerasClassifier(build_fn=self.create_model, epochs=10, batch_size=10, verbose=0)
       model = model.set_params(input_dim=X_train_emb[0].shape[0], learning_rate=learning_rate, n_layers=n_layers,
                                max_neurons=max_neurons, dropout_in_layers=dropout_in_layers, per_dropout=per_dropout)
@@ -165,7 +179,8 @@ class GA:
     GENERATIONS = self.config["GENERATIONS"]
     toolbox.register("individual", tools.initCycle, creator.Individual,
                      (toolbox.attr_learning_rate, toolbox.attr_n_layers, toolbox.attr_max_neurons, toolbox.attr_dropout_in_layers, toolbox.attr_per_dropout, toolbox.attr_epochs, toolbox.attr_batch_size, toolbox.attr_emb_model_name,
-                      toolbox.attr_emb_comb_strategy), n=1)
+                      toolbox.attr_emb_comb_strategy, toolbox.attr_preprop_rem_stopwords, toolbox.attr_preprop_word_normalization, toolbox.attr_preprop_lowercasing,
+                      toolbox.attr_preprop_remove_punctuation, toolbox.attr_preprop_TFIDF_word_removal), n=1)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     toolbox.register("evaluate", self.eval_nn)
