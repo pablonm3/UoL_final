@@ -8,6 +8,7 @@ from cache import RedisCache
 
 def average_pool(last_hidden_states):
     # adapted for Tensorflow from: https://www.kaggle.com/code/pablomarino/from-shallow-learning-to-2020-sota-gpt-2-roberta?scriptVersionId=38895686&cellId=108
+    # don't normalize embeddings due to research that suggest that vector length may contain valuable information: https://arxiv.org/abs/1508.02297
     return tf.reduce_mean(last_hidden_states, axis=1)
 
 def sum_pool(last_hidden_states):
@@ -30,7 +31,7 @@ class EmbeddingGenerator:
         if(not EmbeddingGenerator.cache):
             clear_cache = self.config["CLEAR_CACHE"]
             EmbeddingGenerator.cache = RedisCache(clear_cache)
-        # Load pre-trained model tokenizer (BERT-base uncased)
+        # Load pre-trained model tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = TFAutoModel.from_pretrained(model_name)
         self.max_tokens = 512  # FIXME this depends on the model
@@ -43,13 +44,10 @@ class EmbeddingGenerator:
             last_hidden_state = self.cache.get(key)
         else:
             print("sentence_embedding cache miss hash: ", key)
-            # adapted for tensorflow from source: https://huggingface.co/intfloat/e5-small-v2#usage
-            # removed normalization step due to research that suggest that vector length may contain valuable information: https://arxiv.org/abs/1508.02297
-            # Add special tokens takes care of adding [CLS], [SEP], <s>... tokens in the right way for each model.
             _sentences = sentences[:] # clone sentences
             if("e5" in self.model_name):
                 _sentences = [f"query: {s}" for s in _sentences] # recommended usage for this model: https://huggingface.co/intfloat/e5-small-v2#usage
-
+            # Add special tokens takes care of adding [CLS], [SEP], <s>... tokens in the right way for each model.
             batch_dict = self.tokenizer(_sentences, add_special_tokens=True, return_tensors='tf',
                                         max_length=self.max_tokens, truncation=True, padding="max_length")
             outputs = self.model(**batch_dict)
