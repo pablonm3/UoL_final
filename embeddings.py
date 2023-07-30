@@ -50,8 +50,8 @@ class EmbeddingGenerator:
             if("e5" in self.model_name):
                 _sentences = [f"query: {s}" for s in _sentences] # recommended usage for this model: https://huggingface.co/intfloat/e5-small-v2#usage
 
-            batch_dict = self.tokenizer(sentences, add_special_tokens=True, return_tensors='tf',
-                                        max_length=self.max_tokens, truncation=True, padding=True)
+            batch_dict = self.tokenizer(_sentences, add_special_tokens=True, return_tensors='tf',
+                                        max_length=self.max_tokens, truncation=True, padding="max_length")
             outputs = self.model(**batch_dict)
             last_hidden_state = outputs.last_hidden_state
             self.cache.set(key, last_hidden_state)

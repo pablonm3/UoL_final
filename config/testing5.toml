@@ -1,0 +1,6 @@
+GENERATIONS = 300
+N_POPULATION = 100
+MAX_SAMPLE_SIZE_DS = 200
+DS_PATH = 'datasets/IMDB_Dataset.csv'
+LOG_FILE_DIR = 'logs_test'
+CLEAR_CACHE = false

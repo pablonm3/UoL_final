@@ -5,6 +5,10 @@ DS_PATH = 'datasets/IMDB_Dataset.csv'
 LOG_FILE_DIR = 'logs_test'
 CLEAR_CACHE = false
 [FROZEN_PARAMETERS] # used for testing: freeze parameters to a specific value
+    emb_model_name="intfloat/e5-large-v2"
+    emb_comb_strategy="concat"
+    preprop_rem_stopwords = false
+    preprop_word_normalization = "stemming"
+    preprop_lowercasing = true
+    preprop_remove_punctuation = true
     preprop_TFIDF_word_removal = true
-    emb_model_name = 'roberta-base'
-    #emb_comb_strategy = 'concat'
