@@ -158,6 +158,7 @@ class GA:
       preprop_lowercasing = props["preprop_lowercasing"]
       preprop_remove_punctuation = props["preprop_remove_punctuation"]
       preprop_TFIDF_word_removal = props["preprop_TFIDF_word_removal"]
+      self.textPreprocessor.fit_tfidf(self.X_train)
       X_train_preproped = self.textPreprocessor.run(self.X_train, preprop_rem_stopwords, preprop_word_normalization, preprop_lowercasing, preprop_remove_punctuation, preprop_TFIDF_word_removal)
       X_test_preproped = self.textPreprocessor.run(self.X_test, preprop_rem_stopwords, preprop_word_normalization, preprop_lowercasing, preprop_remove_punctuation, preprop_TFIDF_word_removal)
       X_train_emb, X_test_emb = self.sentence_vectorizer(emb_model_name, X_train_preproped, X_test_preproped, emb_comb_strategy)
