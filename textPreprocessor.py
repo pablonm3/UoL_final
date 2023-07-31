@@ -13,7 +13,7 @@ lemmatizer = WordNetLemmatizer()
 
 ps = PorterStemmer()
 
-nlp = spacy.load("en_core_web_sm", disable=['parser', 'tagger', 'ner'])
+nlp = spacy.load("en_core_web_sm", disable=['parser', 'ner'])
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk_stops = stopwords.words("english")

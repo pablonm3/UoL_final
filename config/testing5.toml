@@ -1,6 +1,9 @@
-GENERATIONS = 300
+GENERATIONS = 100
 N_POPULATION = 100
 MAX_SAMPLE_SIZE_DS = 200
 DS_PATH = 'datasets/IMDB_Dataset.csv'
 LOG_FILE_DIR = 'logs_test'
 CLEAR_CACHE = false
+
+[FROZEN_PARAMETERS] # used for testing: freeze parameters to a specific value
+    preprop_word_normalization = "lemmatization"
