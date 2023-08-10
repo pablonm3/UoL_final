@@ -23,6 +23,7 @@ def get_config(config_file, config_path):
     print(f"reading default_config: {default_config}")
     try:
         client_config = toml.load(toml_path)
+        print(f"read client_config: {default_config}")
     except FileNotFoundError as e:
         config[toml_path] = default_config
         print(f"client config file not available for {config_file}, using final config(default): {config[toml_path]}")
