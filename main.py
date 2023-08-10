@@ -119,7 +119,6 @@ class GA:
 
     return r
   def create_model(self, input_dim, learning_rate, n_layers, max_neurons, dropout_in_layers, per_dropout):
-      # Define method to create model
       NEURONS_CHANGE_FACTOR = self.config["NEURONS_CHANGE_FACTOR"]
       model = Sequential()
       neurons = max_neurons
@@ -162,7 +161,7 @@ class GA:
       X_train_preproped = self.textPreprocessor.run(self.X_train, preprop_rem_stopwords, preprop_word_normalization, preprop_lowercasing, preprop_remove_punctuation, preprop_TFIDF_word_removal)
       X_test_preproped = self.textPreprocessor.run(self.X_test, preprop_rem_stopwords, preprop_word_normalization, preprop_lowercasing, preprop_remove_punctuation, preprop_TFIDF_word_removal)
       X_train_emb, X_test_emb = self.sentence_vectorizer(emb_model_name, X_train_preproped, X_test_preproped, emb_comb_strategy)
-      model = KerasClassifier(build_fn=self.create_model, epochs=10, batch_size=10, verbose=0)
+      model = KerasClassifier(build_fn=self.create_model, verbose=0)
       model = model.set_params(input_dim=X_train_emb[0].shape[0], learning_rate=learning_rate, n_layers=n_layers,
                                max_neurons=max_neurons, dropout_in_layers=dropout_in_layers, per_dropout=per_dropout)
       X_train_emb = tf.stack(X_train_emb)
@@ -191,13 +190,16 @@ class GA:
 
     pop = toolbox.population(n=N_POPULATION)
     hof = my_HallOfFame(1)
+    # START of statistics code copied from example in official documentation: https://deap.readthedocs.io/en/master/tutorials/basic/part3.html#computing-statistics
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean)
     stats.register("std", np.std)
     stats.register("min", np.min)
     stats.register("max", np.max)
+    # END of statistics code copied from documentation
     start_epoch_time = int(time.time())
     stats.register("time", lambda _: int(time.time()) - start_epoch_time)
+    # algorithm setup code(algorithms.eaSimple) copied from example in official documentation: https://deap.readthedocs.io/en/master/tutorials/basic/part3.html#predefined-algorithms
     result, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=PROB_MUTATION, ngen=GENERATIONS, stats=stats,
                                       halloffame=hof, verbose=True)
 
