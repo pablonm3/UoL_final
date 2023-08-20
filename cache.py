@@ -1,65 +1,37 @@
-import redis
+import os
+
 import tensorflow as tf
-from configReader import get_config
+import shutil
 
-def serialize_tensor(tensor_3d):
-
-    # List to store serialized 2D tensors
-    serialized_tensors = []
-
-    # Iterate through the first dimension of the 3D tensor
-    for i in range(tensor_3d.shape[0]):
-        # Extract the 2D tensor at the current index
-        tensor_2d = tensor_3d[i]
-
-        # Serialize the 2D tensor using TensorFlow's method
-        serialized_tensor = tf.io.serialize_tensor(tensor_2d).numpy()
-
-        # Append the serialized tensor to the list
-        serialized_tensors.append(serialized_tensor)
-    return serialized_tensors
-
-def deserialize_tensor(serialized_tensors):
-    # List to store deserialized 2D tensors
-    deserialized_tensors = []
-
-    # Iterate through the serialized tensors
-    for serialized_tensor in serialized_tensors:
-        # Deserialize the tensor using TensorFlow's method
-        deserialized_tensor = tf.io.parse_tensor(serialized_tensor, out_type=tf.float32)
-
-        # Append the deserialized tensor to the list
-        deserialized_tensors.append(deserialized_tensor)
-
-    # Stack the 2D tensors along the first dimension to form a 3D tensor
-    tensor_3d_reconstructed = tf.stack(deserialized_tensors)
-    return tensor_3d_reconstructed
-
-class RedisCache:
-    def __init__(self, clear_cache, host='localhost', port=6379, db=0):
-        self.redis = redis.Redis(host=host, port=port, db=db)
+def delete_contents(path):
+    for filename in os.listdir(path):
+        file_path = os.path.join(path, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
+class TensorCache:
+    def __init__(self, clear_cache):
         if clear_cache:
             self.clear()
 
     def set(self, key, value):
-        strings_list = serialize_tensor(value)
-        for value in strings_list:
-            self.redis.rpush(key, value) # rpush appends latest elements at the end of list. maintaining order of insertion
-
+        filename = "cache_files/" + key + ".tf"
+        serialized_tensor = tf.io.serialize_tensor(value)
+        tf.io.write_file(filename, serialized_tensor)
     def get(self, key):
-        result = self.redis.lrange(key, 0, -1)
-        #strings_list = [item.decode('utf-8') for item in result]
-
-        tensor_3d = deserialize_tensor(result)
-        return tensor_3d
-
-    def delete(self, key):
-        self.redis.delete(key)
+        filename = "cache_files/" + key + ".tf"
+        serialized_tensor = tf.io.read_file(filename)
+        return tf.io.parse_tensor(serialized_tensor, out_type=tf.float32)
 
     def exists(self, key):
-        return self.redis.exists(key)
+        filename = "cache_files/" + key + ".tf"
+        return os.path.exists(filename)
 
     def clear(self):
-        print("[WARNING] clearing redis cache...")
+        print("[WARNING] clearing tensor cache...")
         # clear all keys from db
-        self.redis.flushdb()
+        delete_contents("cache_files")

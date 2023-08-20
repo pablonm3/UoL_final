@@ -3,7 +3,7 @@ import hashlib
 import tensorflow as tf
 from transformers import AutoTokenizer, TFAutoModel
 
-from cache import RedisCache
+from cache import TensorCache
 
 
 def average_pool(last_hidden_states):
@@ -30,7 +30,7 @@ class EmbeddingGenerator:
         self.config = config
         if(not EmbeddingGenerator.cache):
             clear_cache = self.config["CLEAR_CACHE"]
-            EmbeddingGenerator.cache = RedisCache(clear_cache)
+            EmbeddingGenerator.cache = TensorCache(clear_cache)
         # Load pre-trained model tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = TFAutoModel.from_pretrained(model_name)
