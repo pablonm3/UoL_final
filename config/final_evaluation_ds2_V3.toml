@@ -1,0 +1,9 @@
+GENERATIONS = 500
+N_POPULATION = 100
+MAX_SAMPLE_SIZE_DS = 500
+DS_PATH = 'datasets/physics-vs-chemistry-vs-biology_train.csv'
+TEXT_COLUMN = 'Comment'
+LABEL_COLUMN = 'Topic'
+LOG_FILE_DIR = 'logs'
+CLEAR_CACHE = false
+PROB_MUTATION = 0.1
